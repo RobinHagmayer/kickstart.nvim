@@ -156,6 +156,14 @@ vim.opt.scrolloff = 10
 
 vim.opt.wrap = false
 
+-- [[ Diagnostic Settings ]]
+vim.diagnostic.config {
+  virtual_text = false,
+  float = {
+    source = true,
+  },
+}
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -381,14 +389,15 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
+      vim.keymap.set('n', '<leader>/', builtin.current_buffer_fuzzy_find, { desc = '[/] Fuzzily search in current buffer' })
       -- Slightly advanced example of overriding default behavior and theme
-      vim.keymap.set('n', '<leader>/', function()
-        -- You can pass additional configuration to Telescope to change the theme, layout, etc.
-        builtin.current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
-          winblend = 10,
-          previewer = false,
-        })
-      end, { desc = '[/] Fuzzily search in current buffer' })
+      -- vim.keymap.set('n', '<leader>/', function()
+      --   -- You can pass additional configuration to Telescope to change the theme, layout, etc.
+      --   builtin.current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
+      --     winblend = 10,
+      --     previewer = false,
+      --   })
+      -- end, { desc = '[/] Fuzzily search in current buffer' })
 
       -- It's also possible to pass additional configuration options.
       --  See `:help telescope.builtin.live_grep()` for information about particular keys
@@ -550,6 +559,13 @@ require('lazy').setup({
         -- gopls = {},
         -- pyright = {},
         rust_analyzer = {},
+        phpactor = {
+          init_options = {
+            ['language_server_worse_reflection.inlay_hints.enable'] = true,
+            ['language_server_worse_reflection.inlay_hints.types'] = true,
+            ['language_server_worse_reflection.diagnostics.enable'] = false,
+          },
+        },
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -570,6 +586,7 @@ require('lazy').setup({
               },
               hint = {
                 enable = true,
+                arrayIndex = 'Disable',
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
@@ -591,6 +608,8 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        'php-cs-fixer',
+        'phpstan',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -636,6 +655,7 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
+        php = { 'php_cs_fixer' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -644,6 +664,40 @@ require('lazy').setup({
         -- javascript = { { "prettierd", "prettier" } },
       },
     },
+  },
+
+  { -- Linting
+    'mfussenegger/nvim-lint',
+    event = {
+      'BufReadPre',
+      'BufNewFile',
+    },
+    keys = {
+      {
+        '<leader>l',
+        function()
+          require('lint').try_lint()
+        end,
+        mode = 'n',
+        desc = '[L]int buffer',
+      },
+    },
+    config = function()
+      local lint = require 'lint'
+
+      lint.linters_by_ft = {
+        php = { 'phpstan' },
+      }
+
+      local lint_augroup = vim.api.nvim_create_augroup('lint', { clear = true })
+
+      vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWritePost', 'InsertLeave' }, {
+        group = lint_augroup,
+        callback = function()
+          lint.try_lint()
+        end,
+      })
+    end,
   },
 
   { -- Autocompletion
